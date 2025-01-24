@@ -11,25 +11,21 @@ selected_horse: u8;
 
 scene: Scene = Scene::BETTING_MENU;
 
-horse_index := 0;
-
 Stint :: struct {
   begin:    float;
   duration: float;
 }
 
 Horse :: struct {
-  progress: float;
-
+  progress:        float;
   current_speed:   float;
   target_speed:    float;
-
-  stint:    Stint;
-  index := horse_index++;
+  stint:           Stint;
+  odds:            float;
+  visual_odds:     s64;
 }
 
 winning_horse_index: s32;
-
 bet: s32;
 user_balance: s32 = 1000;
 
@@ -44,6 +40,24 @@ colors: Color[NUM_LANES] = {
   YELLOW,
   BLUE
 };
+
+last_winnings: s32;
+
+refresh_odds :: fn() {
+  high_roller_idx := GetRandomValue(0, NUM_LANES - 1);
+  high_roller_odds := GetRandomValue(15, 30);
+  horses[high_roller_idx].odds = high_roller_odds as float;
+  horses[high_roller_idx].visual_odds = high_roller_odds;
+
+  for i in 0..NUM_LANES {
+    if i != high_roller_idx {
+      numerator := 1;
+      denominator := GetRandomValue(2, 20);
+      horses[i].odds = (denominator as float) / (numerator as float);
+      horses[i].visual_odds = denominator;
+    }
+  }
+}
 
 draw :: fn() {
   finish_line_x := ((GetScreenWidth() as float) * 0.9) as s32;
@@ -77,10 +91,11 @@ update :: fn() {
     if (horse.progress > 0.9) {
       winning_horse_index = i as u8;
       if selected_horse == i {
-        // TODO: add odds and a better betting system.
-        user_balance += bet * 4; 
-        bet = 0;
+        user_balance += bet * horse.odds;
+        last_winnings = bet * horse.odds;
       }
+      memset(horses, 0, sizeof(Horse) * NUM_LANES);
+      refresh_odds();
       scene = Scene::ROUND_OVER_MENU;
       break;
     }
@@ -125,15 +140,18 @@ draw_betting_menu :: fn() {
   rect.y += BUTTON_HEIGHT * 1.5;
   
   if button("Start Race", rect, style) {
-    scene = Scene::RACE_SCENE;
-    memset(horses, 0, sizeof(Horse) * NUM_LANES);
-    user_balance -= bet;
+    if user_balance > 0 && bet > 0 {
+      scene = Scene::RACE_SCENE;
+      //memset(horses, 0, sizeof(Horse) * NUM_LANES);
+      user_balance -= bet;
+    } else {
+      style.foreground = RED;
+    }
   }
 
   text = $"Current Balance: ${user_balance}";
   DrawText(text, rect.x as s32, (rect.y - BUTTON_HEIGHT * 2) as s32, 16, GREEN);
   free(text);
-
 
   for i in 0..NUM_LANES {
     rect := Rectangle {
@@ -145,7 +163,7 @@ draw_betting_menu :: fn() {
     
     style.foreground = colors[i];
     style.background = GRAY.with_alpha(25);
-    text := $"Horse #{i}";
+    text := $"{1}/{horses[i].visual_odds}";
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
   }
@@ -153,14 +171,14 @@ draw_betting_menu :: fn() {
 }
 
 draw_your_horse_indicator :: fn() {
-  DrawRectangle(0, 0, HORSE_SIZE, HORSE_SIZE, colors[selected_horse]);
-  text := $"{selected_horse}";
+  text := $"{selected_horse}, bet: ${bet}\nprojected win: ${((bet as float) * horses[selected_horse].odds) as s32}";
+  width := MeasureText(text, 18);
+  DrawRectangle(0, 0, width * 1.2, HORSE_SIZE, colors[selected_horse]);
   defer free(text);
-  DrawText(text, 0, 0, 32, BLACK);
+  DrawText(text, 4, 0, 18, BLACK);
 }
 
 draw_round_over_menu :: fn() {
-  bet = 0;
   
   #static style := Style {
     foreground: WHITE,
@@ -175,10 +193,10 @@ draw_round_over_menu :: fn() {
     3 => "blue",
   };
   
-  text := $"Horse #{winning_horse_index+1} ({color_name})  wins!!";
-  defer free(text);
+  text := $"Horse #{winning_horse_index+1} ({color_name})  wins!!\n";
   width := measure_jiggly_text(text, style) / 2;
-  
+
+
   text_rect := Rectangle {
     x: (GetScreenWidth() / 2 - width),
     y: (GetScreenHeight() / 2),
@@ -187,7 +205,20 @@ draw_round_over_menu :: fn() {
   };
   
   jiggly_text(text, text_rect, style);
+  free(text);
 
+
+  if selected_horse == winning_horse_index {
+    text = $"You win ${last_winnings}";
+    DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, GREEN);
+    free(text);
+  } else {
+    text = $"You lost ${bet}";
+    DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, RED);
+    free(text);
+  }
+  
+  
 
   BUTTON_WIDTH  := GetScreenWidth() / 10;
   BUTTON_HEIGHT := 80;
@@ -209,14 +240,19 @@ draw_round_over_menu :: fn() {
   };
 
   if button("Back to betting menu", button_rect, button_style) {
+    bet = 0;
     scene = Scene::BETTING_MENU;
   }    
 }
 
 main :: fn() {
+  
   SetTraceLogLevel(TraceLogLevel::LOG_NONE);
   InitWindow(1920, 600, "Debt Simulator");
   SetTargetFPS(60);
+
+  refresh_odds();
+  
   while !WindowShouldClose() {
     BeginDrawing();
       ClearBackground(BLACK);
