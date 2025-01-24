@@ -28,6 +28,7 @@ Horse :: struct {
 winning_horse_index: s32;
 bet: s32;
 user_balance: s32 = 1000;
+debt : s32 = 0;
 
 HORSE_SIZE :: 40;
 NUM_LANES  :: 4;
@@ -91,8 +92,14 @@ update :: fn() {
     if (horse.progress > 0.9) {
       winning_horse_index = i as u8;
       if selected_horse == i {
-        user_balance += bet * horse.odds;
-        last_winnings = bet * horse.odds;
+        winnings := bet * horse.odds;
+        if debt < 0 {
+          amount_to_pay := min![s32](winnings, -debt);
+          debt += amount_to_pay;
+          winnings -= amount_to_pay;
+        }
+        user_balance += winnings;
+        last_winnings = winnings;
       }
       memset(horses, 0, sizeof(Horse) * NUM_LANES);
       refresh_odds();
@@ -132,8 +139,18 @@ draw_betting_menu :: fn() {
     if bet <= 0 then bet = 0;
   }
 
+  prev_x := rect.x;
+
+  rect.x += (BUTTON_WIDTH as float) * 1.5;
+
+  if button("Max Bet", rect, style) {
+    bet = user_balance;
+  }
+
+  rect.x = prev_x;
+
   text := $"Current Bet: {bet}";
-  DrawText(text, rect.x as s32 - (BUTTON_WIDTH), (rect.y as s32) - BUTTON_HEIGHT, 32, WHITE);
+  DrawText(text, rect.x as s32 - (BUTTON_WIDTH), (rect.y as s32) - BUTTON_HEIGHT * 3, 32, WHITE);
   free(text);
 
   rect.x -= BUTTON_WIDTH / 1.25;
@@ -150,7 +167,10 @@ draw_betting_menu :: fn() {
   }
 
   text = $"Current Balance: ${user_balance}";
-  DrawText(text, rect.x as s32, (rect.y - BUTTON_HEIGHT * 2) as s32, 16, GREEN);
+  DrawText(text, rect.x as s32, (rect.y - BUTTON_HEIGHT * 2) as s32, 18, GREEN);
+  free(text);
+  text = $"Debt : {debt}";
+  DrawText(text, rect.x as s32 + MeasureText(text, 18), (rect.y - BUTTON_HEIGHT * 2.5) as s32, 18, RED);
   free(text);
 
   for i in 0..NUM_LANES {
@@ -168,6 +188,45 @@ draw_betting_menu :: fn() {
     if button(text, rect, style) then selected_horse = i;
   }
 
+  loan_rect_1 := Rectangle {
+      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
+      y: GetScreenHeight() - (3 * BUTTON_HEIGHT),
+      width: BUTTON_WIDTH,
+      height: BUTTON_HEIGHT
+  };
+
+  loan_rect_2 := Rectangle {
+      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
+      y: GetScreenHeight() - (2 * BUTTON_HEIGHT),
+      width: BUTTON_WIDTH,
+      height: BUTTON_HEIGHT
+  };
+
+  loan_rect_3 := Rectangle {
+      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
+      y: GetScreenHeight() - BUTTON_HEIGHT,
+      width: BUTTON_WIDTH,
+      height: BUTTON_HEIGHT
+  };
+
+  style.foreground = ORANGE;
+
+  DrawText("Take loan, 15% interest.", loan_rect_1.x as s32, (loan_rect_1.y as s32) - 24, 16, ORANGE);  
+
+  if button("$1,000", loan_rect_1, style) {
+    user_balance += 1000;
+    debt -= 1000 * 1.5;
+  }
+
+  if button("$5,000", loan_rect_2, style) {
+    user_balance += 5000;
+    debt -= 5000 * 1.5;
+  }
+
+  if button("$10,000", loan_rect_3, style) {
+    user_balance += 10000;
+    debt -= 10_000 * 1.5;
+  }
 }
 
 draw_your_horse_indicator :: fn() {
