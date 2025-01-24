@@ -1,0 +1,238 @@
+#import rayui;
+#import time;
+
+Scene :: enum {
+  BETTING_MENU,
+  RACE_SCENE,
+  ROUND_OVER_MENU,
+}
+
+selected_horse: u8;
+
+scene: Scene = Scene::BETTING_MENU;
+
+horse_index := 0;
+
+Stint :: struct {
+  begin:    float;
+  duration: float;
+}
+
+Horse :: struct {
+  progress: float;
+
+  current_speed:   float;
+  target_speed:    float;
+
+  stint:    Stint;
+  index := horse_index++;
+}
+
+winning_horse_index: s32;
+
+bet: s32;
+user_balance: s32 = 1000;
+
+HORSE_SIZE :: 40;
+NUM_LANES  :: 4;
+
+horses: Horse[NUM_LANES];
+
+colors: Color[NUM_LANES] = {
+  RED,
+  GREEN,
+  YELLOW,
+  BLUE
+};
+
+draw :: fn() {
+  finish_line_x := ((GetScreenWidth() as float) * 0.9) as s32;
+  DrawRectangle(finish_line_x, 0, 45, GetScreenHeight(), PURPLE);
+  LANE_HEIGHT := GetScreenHeight() / NUM_LANES;
+  PADDING := LANE_HEIGHT / 10;
+  for i in 0..NUM_LANES {
+    horse := horses[i];
+    x : s32 = GetScreenWidth() * horse.progress;
+    y : s32 = ((i % NUM_LANES) * LANE_HEIGHT + PADDING + HORSE_SIZE) as s32;
+    DrawRectangle(x, y, HORSE_SIZE, HORSE_SIZE, colors[i]);
+  }
+}
+
+update_stint :: fn(horse: Horse*) {
+  // if the stint is over, or it never began, restart it.
+  time := GetTime();   
+  if horse.stint.duration == 0 || time - horse.stint.begin >= horse.stint.duration {
+    horse.stint.begin = time;
+    horse.stint.duration = GetRandomValue(1, 2);
+    horse.target_speed = GetRandomValue(1, 2) as float / 1000.0;
+  }
+}
+
+update :: fn() {
+  for i in 0..NUM_LANES {
+    horse := &horses[i];
+    update_stint(horse);    
+    horse.progress = fmod(horse.progress + horse.current_speed, 1.0);
+    horse.current_speed = lerp(horse.current_speed, horse.target_speed, 0.01);
+    if (horse.progress > 0.9) {
+      winning_horse_index = i as u8;
+      if selected_horse == i {
+        // TODO: add odds and a better betting system.
+        user_balance += bet * 4; 
+        bet = 0;
+      }
+      scene = Scene::ROUND_OVER_MENU;
+      break;
+    }
+  }
+}
+
+draw_betting_menu :: fn() {
+  BUTTON_WIDTH  := GetScreenWidth() / 10;
+  BUTTON_HEIGHT := 80;
+
+  style := Style {
+    foreground: WHITE,
+    background: GRAY,
+    font_size:  16,
+    use_jiggly_text: false,
+  };
+
+  rect := Rectangle {
+    x: (GetScreenWidth() / 2) - BUTTON_WIDTH,
+    y: (GetScreenHeight() / 2),
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT
+  };
+    
+  if button("Increase Bet", rect, style) {
+    if bet == 0 then bet = 10;
+    bet *= 1.2;
+    if bet > user_balance then bet = user_balance;
+  }
+  
+  rect.x += (BUTTON_WIDTH as float) * 1.5;
+  if button("Decrease Bet", rect, style) {
+    bet /= 1.2;
+    if bet <= 0 then bet = 0;
+  }
+
+  text := $"Current Bet: {bet}";
+  DrawText(text, rect.x as s32 - (BUTTON_WIDTH), (rect.y as s32) - BUTTON_HEIGHT, 32, WHITE);
+  free(text);
+
+  rect.x -= BUTTON_WIDTH / 1.25;
+  rect.y += BUTTON_HEIGHT * 1.5;
+  
+  if button("Start Race", rect, style) {
+    scene = Scene::RACE_SCENE;
+    memset(horses, 0, sizeof(Horse) * NUM_LANES);
+    user_balance -= bet;
+  }
+
+  text = $"Current Balance: ${user_balance}";
+  DrawText(text, rect.x as s32, (rect.y - BUTTON_HEIGHT * 2) as s32, 16, GREEN);
+  free(text);
+
+
+  for i in 0..NUM_LANES {
+    rect := Rectangle {
+      x: (i * BUTTON_WIDTH / 2) as float,
+      y: GetScreenHeight() / 1.25,
+      width:  BUTTON_WIDTH / 2,
+      height: BUTTON_HEIGHT / 2,
+    };
+    
+    style.foreground = colors[i];
+    style.background = GRAY.with_alpha(25);
+    text := $"Horse #{i}";
+    defer free(text);
+    if button(text, rect, style) then selected_horse = i;
+  }
+
+}
+
+draw_your_horse_indicator :: fn() {
+  DrawRectangle(0, 0, HORSE_SIZE, HORSE_SIZE, colors[selected_horse]);
+  text := $"{selected_horse}";
+  defer free(text);
+  DrawText(text, 0, 0, 32, BLACK);
+}
+
+draw_round_over_menu :: fn() {
+  bet = 0;
+  
+  #static style := Style {
+    foreground: WHITE,
+    background: CLEAR,
+    font_size: 32
+  };
+
+  color_name := switch winning_horse_index {
+    0 => "red",
+    1 => "green",
+    2 => "yellow",
+    3 => "blue",
+  };
+  
+  text := $"Horse #{winning_horse_index+1} ({color_name})  wins!!";
+  defer free(text);
+  width := measure_jiggly_text(text, style) / 2;
+  
+  text_rect := Rectangle {
+    x: (GetScreenWidth() / 2 - width),
+    y: (GetScreenHeight() / 2),
+    width: 0,
+    height: 0
+  };
+  
+  jiggly_text(text, text_rect, style);
+
+
+  BUTTON_WIDTH  := GetScreenWidth() / 10;
+  BUTTON_HEIGHT := 80;
+
+  #static button_style := Style {
+    foreground: WHITE,
+    background: GRAY,
+    font_size:  24,
+    use_jiggly_text: false,
+  };
+
+  width = MeasureText("Back to betting menu", 24);
+
+  button_rect := Rectangle {
+    x: (GetScreenWidth() / 2) - (width / 2),
+    y: (GetScreenHeight() / 4),
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT
+  };
+
+  if button("Back to betting menu", button_rect, button_style) {
+    scene = Scene::BETTING_MENU;
+  }    
+}
+
+main :: fn() {
+  SetTraceLogLevel(TraceLogLevel::LOG_NONE);
+  InitWindow(1920, 600, "Debt Simulator");
+  SetTargetFPS(60);
+  while !WindowShouldClose() {
+    BeginDrawing();
+      ClearBackground(BLACK);
+      switch scene {
+        Scene::BETTING_MENU: {
+          draw_betting_menu();
+        }
+        Scene::RACE_SCENE: {
+          draw();
+          update();
+        }
+        Scene::ROUND_OVER_MENU: {
+          draw_round_over_menu();
+        }
+      }
+    draw_your_horse_indicator();
+    EndDrawing();
+  }
+}
