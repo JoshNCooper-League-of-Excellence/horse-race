@@ -108,6 +108,7 @@ update :: fn() {
     }
   }
 }
+
 draw_betting_menu :: fn() {
   BUTTON_WIDTH  := GetScreenWidth() / 15;
   BUTTON_HEIGHT := 60;
@@ -144,7 +145,7 @@ draw_betting_menu :: fn() {
   horse_section := Rectangle {
     x: GetScreenWidth() / 2 - BUTTON_WIDTH * 3,
     y: GetScreenHeight() / 1.25 - BUTTON_HEIGHT,
-    width: BUTTON_WIDTH * 6,
+    width: BUTTON_WIDTH * NUM_LANES,
     height: BUTTON_HEIGHT
   };
 
@@ -174,7 +175,7 @@ draw_betting_menu :: fn() {
     if bet <= 0 then bet = 0;
   }
 
-  betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
+  betting_rect.y -= (BUTTON_HEIGHT as float) * 1.5;
   if button("Max Bet", betting_rect, style) {
     bet = user_balance;
   }
@@ -241,9 +242,9 @@ draw_betting_menu :: fn() {
   // Draw horse betting buttons
   for i in 0..NUM_LANES {
     rect := Rectangle {
-      x: horse_section.x + (i * BUTTON_WIDTH / 2) as float,
+      x: horse_section.x + (i * BUTTON_WIDTH) as float,
       y: horse_section.y + BUTTON_HEIGHT / 4,
-      width:  BUTTON_WIDTH / 2,
+      width:  BUTTON_WIDTH,
       height: BUTTON_HEIGHT / 2,
     };
 
