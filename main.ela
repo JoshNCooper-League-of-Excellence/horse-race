@@ -108,10 +108,9 @@ update :: fn() {
     }
   }
 }
-
 draw_betting_menu :: fn() {
-  BUTTON_WIDTH  := GetScreenWidth() / 10;
-  BUTTON_HEIGHT := 80;
+  BUTTON_WIDTH  := GetScreenWidth() / 15;
+  BUTTON_HEIGHT := 60;
 
   style := Style {
     foreground: WHITE,
@@ -120,112 +119,139 @@ draw_betting_menu :: fn() {
     use_jiggly_text: false,
   };
 
-  rect := Rectangle {
-    x: (GetScreenWidth() / 2) - BUTTON_WIDTH,
-    y: (GetScreenHeight() / 2),
-    width: BUTTON_WIDTH,
+  // Define rectangles for different sections
+  betting_section := Rectangle {
+    x: GetScreenWidth() / 4 - BUTTON_WIDTH,
+    y: GetScreenHeight() / 2 - BUTTON_HEIGHT * 2,
+    width: BUTTON_WIDTH * 3,
+    height: BUTTON_HEIGHT * 2
+  };
+
+  balance_section := Rectangle {
+    x: GetScreenWidth() / 4 - BUTTON_WIDTH,
+    y: betting_section.y - BUTTON_HEIGHT * 2,
+    width: BUTTON_WIDTH * 3,
+    height: BUTTON_HEIGHT * 2
+  };
+
+  loan_section := Rectangle {
+    x: GetScreenWidth() - (2.5 * BUTTON_WIDTH),
+    y: GetScreenHeight() - (4 * BUTTON_HEIGHT),
+    width: BUTTON_WIDTH * 1.5,
+    height: BUTTON_HEIGHT * 3
+  };
+
+  horse_section := Rectangle {
+    x: GetScreenWidth() / 2 - BUTTON_WIDTH * 3,
+    y: GetScreenHeight() / 1.25 - BUTTON_HEIGHT,
+    width: BUTTON_WIDTH * 6,
     height: BUTTON_HEIGHT
   };
-    
-  if button("Increase Bet", rect, style) {
+
+  // Draw background rectangles for sections
+  DrawRectangleRec(betting_section, DARKGRAY.with_alpha(50));
+  DrawRectangleRec(balance_section, DARKGRAY.with_alpha(50));
+  DrawRectangleRec(loan_section, DARKGRAY.with_alpha(50));
+  DrawRectangleRec(horse_section, DARKGRAY.with_alpha(50));
+
+  // Draw betting buttons
+  betting_rect := Rectangle {
+    x: betting_section.x + BUTTON_WIDTH / 4,
+    y: betting_section.y + BUTTON_HEIGHT / 4,
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT / 2
+  };
+
+  if button("Increase Bet", betting_rect, style) {
     if bet == 0 then bet = 10;
     bet *= 1.2;
     if bet > user_balance then bet = user_balance;
   }
-  
-  rect.x += (BUTTON_WIDTH as float) * 1.5;
-  if button("Decrease Bet", rect, style) {
+
+  betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
+  if button("Decrease Bet", betting_rect, style) {
     bet /= 1.2;
     if bet <= 0 then bet = 0;
   }
 
-  prev_x := rect.x;
-
-  rect.x += (BUTTON_WIDTH as float) * 1.5;
-
-  if button("Max Bet", rect, style) {
+  betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
+  if button("Max Bet", betting_rect, style) {
     bet = user_balance;
   }
 
-  rect.x = prev_x;
-
+  // Draw balance and debt text
   text := $"Current Bet: {bet}";
-  DrawText(text, rect.x as s32 - (BUTTON_WIDTH), (rect.y as s32) - BUTTON_HEIGHT * 3, 32, WHITE);
+  DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 32, WHITE);
   free(text);
 
-  rect.x -= BUTTON_WIDTH / 1.25;
-  rect.y += BUTTON_HEIGHT * 1.5;
-  
-  if button("Start Race", rect, style) {
+  text = $"Current Balance: ${user_balance}";
+  DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 50, 18, GREEN);
+  free(text);
+
+  text = $"Debt: {debt}";
+  DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 90, 18, RED);
+  free(text);
+
+  // Draw start race button
+  start_rect := Rectangle {
+    x: betting_section.x + BUTTON_WIDTH / 4,
+    y: betting_section.y + BUTTON_HEIGHT,
+    width: BUTTON_WIDTH * 2.5,
+    height: BUTTON_HEIGHT / 2
+  };
+
+  if button("Start Race", start_rect, style) {
     if user_balance > 0 && bet > 0 {
       scene = Scene::RACE_SCENE;
-      //memset(horses, 0, sizeof(Horse) * NUM_LANES);
       user_balance -= bet;
     } else {
       style.foreground = RED;
     }
   }
 
-  text = $"Current Balance: ${user_balance}";
-  DrawText(text, rect.x as s32, (rect.y - BUTTON_HEIGHT * 2) as s32, 18, GREEN);
-  free(text);
-  text = $"Debt : {debt}";
-  DrawText(text, rect.x as s32 + MeasureText(text, 18), (rect.y - BUTTON_HEIGHT * 2.5) as s32, 18, RED);
-  free(text);
+  // Draw loan buttons
+  style.foreground = ORANGE;
 
+  DrawText("Take loan, 15% interest.", loan_section.x as s32, (loan_section.y as s32) - 24, 16, ORANGE);
+
+  loan_rect := Rectangle {
+    x: loan_section.x + BUTTON_WIDTH / 4,
+    y: loan_section.y + BUTTON_HEIGHT / 4,
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT / 2
+  };
+
+  if button("$1,000", loan_rect, style) {
+    user_balance += 1000;
+    debt -= 1000 * 1.15;
+  }
+
+  loan_rect.y += BUTTON_HEIGHT;
+  if button("$5,000", loan_rect, style) {
+    user_balance += 5000;
+    debt -= 5000 * 1.15;
+  }
+
+  loan_rect.y += BUTTON_HEIGHT;
+  if button("$10,000", loan_rect, style) {
+    user_balance += 10000;
+    debt -= 10000 * 1.15;
+  }
+
+  // Draw horse betting buttons
   for i in 0..NUM_LANES {
     rect := Rectangle {
-      x: (i * BUTTON_WIDTH / 2) as float,
-      y: GetScreenHeight() / 1.25,
+      x: horse_section.x + (i * BUTTON_WIDTH / 2) as float,
+      y: horse_section.y + BUTTON_HEIGHT / 4,
       width:  BUTTON_WIDTH / 2,
       height: BUTTON_HEIGHT / 2,
     };
-    
+
     style.foreground = colors[i];
     style.background = GRAY.with_alpha(25);
     text := $"{1}/{horses[i].visual_odds}";
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
-  }
-
-  loan_rect_1 := Rectangle {
-      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
-      y: GetScreenHeight() - (3 * BUTTON_HEIGHT),
-      width: BUTTON_WIDTH,
-      height: BUTTON_HEIGHT
-  };
-
-  loan_rect_2 := Rectangle {
-      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
-      y: GetScreenHeight() - (2 * BUTTON_HEIGHT),
-      width: BUTTON_WIDTH,
-      height: BUTTON_HEIGHT
-  };
-
-  loan_rect_3 := Rectangle {
-      x: GetScreenWidth() - (2 * BUTTON_WIDTH),
-      y: GetScreenHeight() - BUTTON_HEIGHT,
-      width: BUTTON_WIDTH,
-      height: BUTTON_HEIGHT
-  };
-
-  style.foreground = ORANGE;
-
-  DrawText("Take loan, 15% interest.", loan_rect_1.x as s32, (loan_rect_1.y as s32) - 24, 16, ORANGE);  
-
-  if button("$1,000", loan_rect_1, style) {
-    user_balance += 1000;
-    debt -= 1000 * 1.5;
-  }
-
-  if button("$5,000", loan_rect_2, style) {
-    user_balance += 5000;
-    debt -= 5000 * 1.5;
-  }
-
-  if button("$10,000", loan_rect_3, style) {
-    user_balance += 10000;
-    debt -= 10_000 * 1.5;
   }
 }
 
