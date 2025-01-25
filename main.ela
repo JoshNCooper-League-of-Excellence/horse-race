@@ -268,7 +268,7 @@ draw_betting_menu :: fn() {
 
 
   save_load_rect :=  Rectangle {
-    x: BUTTON_WIDTH,
+    x: 0,
     y: BUTTON_HEIGHT,
     width: BUTTON_WIDTH,
     height: BUTTON_HEIGHT,
