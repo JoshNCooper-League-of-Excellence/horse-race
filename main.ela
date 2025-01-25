@@ -23,13 +23,13 @@ Horse :: struct {
   target_speed:    float;
   stint:           Stint;
   odds:            float;
-  odds_against:     s64;
+  odds_against:     u64;
 }
 
 winning_horse_index: s32;
-bet: s32;
-user_balance: s32 = 1000;
-debt : s32 = 0;
+bet: u64;
+user_balance: u64 = 1000;
+debt : u64 = 0;
 total_odds : float = 0;
 
 HORSE_SIZE :: 40;
@@ -44,7 +44,7 @@ colors: Color[NUM_LANES] = {
   BLUE
 };
 
-last_winnings: s32;
+last_winnings: u64;
 
 refresh_odds :: fn() {
   total_odds = 0;
@@ -105,7 +105,7 @@ update :: fn() {
       if selected_horse == i {
         winnings := bet * horse.odds_against;
         if debt < 0 {
-          amount_to_pay := min![s32](winnings, -debt);
+          amount_to_pay := min![u64](winnings, -debt);
           debt += amount_to_pay;
           winnings -= amount_to_pay;
         }
@@ -176,13 +176,13 @@ draw_betting_menu :: fn() {
 
   if button("Increase Bet", betting_rect, style) {
     if bet == 0 then bet = 10;
-    bet *= 1.2;
+    bet = ((bet as float64) * 1.2) as u64;
     if bet > user_balance then bet = user_balance;
   }
 
   betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
   if button("Decrease Bet", betting_rect, style) {
-    bet /= 1.2;
+    bet = ((bet as float64) * 1.2) as u64;
     if bet <= 0 then bet = 0;
   }
 
