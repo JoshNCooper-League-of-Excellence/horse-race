@@ -29,7 +29,7 @@ Horse :: struct {
 winning_horse_index: s32;
 bet: u64;
 user_balance: u64 = 1000;
-debt : u64 = 0;
+debt: u64 = 0;
 total_odds : float = 0;
 
 HORSE_SIZE :: 40;
@@ -43,6 +43,39 @@ colors: Color[NUM_LANES] = {
   YELLOW,
   BLUE
 };
+
+format_number :: fn(num: u64) -> c_string {
+  dbl := num as float64;
+  symbol : char;
+  buffer : char[20];
+  res : c_string;
+
+  if (num <= 1000) {
+    snprintf(buffer, sizeof(buffer), "%llu", num);
+    return strdup(buffer) as c_string;
+  } else if (num < 1_000_000) {
+    dbl /= 1000.0;
+    symbol = 'K';
+  } else if (num < 1_000_000_000) {
+    dbl /= 1_000_000.0;
+    symbol = 'M';
+  } else if (num < 1_000_000_000_000) {
+    dbl /= 1_000_000_000.0;
+    symbol = 'B';
+  } else if (num < 1_000_000_000_000_000) {
+    dbl /= 1_000_000_000_000.0;
+    symbol = 'T';
+  } else if (num < 1_000_000_000_000_000_000) {
+    dbl /= 1_000_000_000_000_000.0;
+    symbol = 'Q';
+  } else {
+    return null;
+  }
+
+  snprintf(buffer, sizeof(buffer), "%.0f%c", dbl, symbol);
+  res = strdup(buffer) as c_string;
+  return res;
+}
 
 last_winnings: u64;
 
@@ -104,9 +137,9 @@ update :: fn() {
       winning_horse_index = i as u8;
       if selected_horse == i {
         winnings := bet * horse.odds_against;
-        if debt < 0 {
-          amount_to_pay := min![u64](winnings, -debt);
-          debt += amount_to_pay;
+        if debt > 0 {
+          amount_to_pay := min![u64](winnings, debt);
+          debt -= amount_to_pay;
           winnings -= amount_to_pay;
         }
         user_balance += winnings;
@@ -192,15 +225,21 @@ draw_betting_menu :: fn() {
   }
 
   // Draw balance and debt text
-  text := $"Current Bet: {bet}";
+  number := format_number(bet);
+  text := $"Current Bet: {number}";
+  free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 18, WHITE);
   free(text);
 
-  text = $"Current Balance: ${user_balance}";
+  number = format_number(user_balance);
+  text = $"Current Balance: ${number}";
+  free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 50, 18, GREEN);
   free(text);
 
-  text = $"Debt: {debt}";
+  number = format_number(debt);
+  text = $"Debt: {number}";
+  free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 90, 18, RED);
   free(text);
 
@@ -235,19 +274,19 @@ draw_betting_menu :: fn() {
 
   if button("$1,000", loan_rect, style) {
     user_balance += 1000;
-    debt -= 1000 * 1.15;
+    debt += 1000 * 1.15;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
   if button("$5,000", loan_rect, style) {
     user_balance += 5000;
-    debt -= 5000 * 1.15;
+    debt += 5000 * 1.15;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
   if button("$10,000", loan_rect, style) {
     user_balance += 10000;
-    debt -= 10000 * 1.15;
+    debt += 10000 * 1.15;
   }
 
   // Draw horse betting buttons
@@ -306,7 +345,11 @@ draw_betting_menu :: fn() {
 }
 
 draw_your_horse_indicator :: fn() {
-  text := $"{selected_horse}, bet: ${bet}\nprojected win: ${bet * horses[selected_horse].odds_against}";
+  bet_str := format_number(bet);
+  winnings_str := format_number(bet * horses[selected_horse].odds_against);
+  text := $"{selected_horse}, bet: ${bet_str}\nprojected win: ${winnings_str}";
+  free(bet_str);
+  free(winnings_str);
   width := MeasureText(text, 18);
   DrawRectangle(0, 0, width * 1.2, HORSE_SIZE, colors[selected_horse]);
   defer free(text);
@@ -344,11 +387,15 @@ draw_round_over_menu :: fn() {
 
 
   if selected_horse == winning_horse_index {
-    text = $"You win ${last_winnings}";
+    winnings_str := format_number(last_winnings);
+    text = $"You win ${winnings_str}";
+    free(winnings_str);
     DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, GREEN);
     free(text);
   } else {
-    text = $"You lost ${bet}";
+    bet_str := format_number(bet);
+    text = $"You lost ${bet_str}";
+    free(bet_str);
     DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, RED);
     free(text);
   }
