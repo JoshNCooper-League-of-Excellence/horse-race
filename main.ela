@@ -285,23 +285,22 @@ draw_betting_menu :: fn() {
   if button("Load", save_load_rect, style) {
     err, str := File::read_all("data.config");
     if err {
-     println(err);
-     return;
+      println(err);
+      return;
     }
-    i := 0;
-    while str[i] != ',' && str[i] != '\0' {
-      ++i;
+
+    // Use strtok to parse the string
+    balance_str := strtok(str, ", ");
+    if balance_str != null {
+      user_balance = atoi(balance_str);
     }
-    balance_str := string::from_ptr(str, str + i);
-    defer balance_str.deinit();
-    user_balance = atoi(balance_str.data);
-    end := i;
-    while str[i] != '\0' {
-      ++i;
+
+    debt_str := strtok(null, ", ");
+    if debt_str != null {
+      debt = atoi(debt_str);
     }
-    debt_str := string::from_ptr(str + end, str + i);
-    debt = atoi(debt_str.data);
-    defer debt_str.deinit();
+
+    free(str);
   }
 }
 
