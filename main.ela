@@ -1,5 +1,6 @@
 #import rayui;
 #import time;
+#import file;
 
 Scene :: enum {
   BETTING_MENU,
@@ -263,6 +264,44 @@ draw_betting_menu :: fn() {
     text := $"{1}/{horses[i].odds_against}";
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
+  }
+
+
+  save_load_rect :=  Rectangle {
+    x: BUTTON_WIDTH,
+    y: BUTTON_HEIGHT,
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+  };
+  
+  if button("Save", save_load_rect, style) {
+    str := $"{user_balance}, {debt}";
+    err := File::write_all("data.config", str);
+    println(err);
+    free(str);
+  }
+
+  save_load_rect.y += BUTTON_HEIGHT * 1.2;
+  if button("Load", save_load_rect, style) {
+    err, str := File::read_all("data.config");
+    if err {
+     println(err);
+     return;
+    }
+    i := 0;
+    while str[i] != ',' && str[i] != '\0' {
+      ++i;
+    }
+    balance_str := string::from_ptr(str, str + i);
+    defer balance_str.deinit();
+    user_balance = atoi(balance_str.data);
+    end := i;
+    while str[i] != '\0' {
+      ++i;
+    }
+    debt_str := string::from_ptr(str + end, str + i);
+    debt = atoi(debt_str.data);
+    defer debt_str.deinit();
   }
 }
 
