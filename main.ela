@@ -122,29 +122,29 @@ draw_betting_menu :: fn() {
 
   // Define rectangles for different sections
   betting_section := Rectangle {
-    x: GetScreenWidth() / 4 - BUTTON_WIDTH,
+    x: GetScreenWidth() - (BUTTON_WIDTH * 3),
     y: GetScreenHeight() / 2 - BUTTON_HEIGHT * 2,
     width: BUTTON_WIDTH * 3,
-    height: BUTTON_HEIGHT * 2
+    height: BUTTON_HEIGHT * 2.5
   };
 
   balance_section := Rectangle {
-    x: GetScreenWidth() / 4 - BUTTON_WIDTH,
+    x: GetScreenWidth() - (BUTTON_WIDTH * 3),
     y: betting_section.y - BUTTON_HEIGHT * 2,
     width: BUTTON_WIDTH * 3,
     height: BUTTON_HEIGHT * 2
   };
 
   loan_section := Rectangle {
-    x: GetScreenWidth() - (2.5 * BUTTON_WIDTH),
-    y: GetScreenHeight() - (4 * BUTTON_HEIGHT),
+    x: GetScreenWidth() - (1.5 * BUTTON_WIDTH),
+    y: GetScreenHeight() - (3.25 * BUTTON_HEIGHT),
     width: BUTTON_WIDTH * 1.5,
     height: BUTTON_HEIGHT * 3
   };
 
   horse_section := Rectangle {
-    x: GetScreenWidth() / 2 - BUTTON_WIDTH * 3,
-    y: GetScreenHeight() / 1.25 - BUTTON_HEIGHT,
+    x: (GetScreenWidth() / 2) - (BUTTON_HEIGHT * 4),
+    y: BUTTON_HEIGHT * 1.15,
     width: BUTTON_WIDTH * NUM_LANES,
     height: BUTTON_HEIGHT
   };
@@ -175,14 +175,14 @@ draw_betting_menu :: fn() {
     if bet <= 0 then bet = 0;
   }
 
-  betting_rect.y -= (BUTTON_HEIGHT as float) * 1.5;
+  betting_rect.y += (BUTTON_HEIGHT as float) * 1.5;
   if button("Max Bet", betting_rect, style) {
     bet = user_balance;
   }
 
   // Draw balance and debt text
   text := $"Current Bet: {bet}";
-  DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 32, WHITE);
+  DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 18, WHITE);
   free(text);
 
   text = $"Current Balance: ${user_balance}";
@@ -334,7 +334,9 @@ draw_round_over_menu :: fn() {
 main :: fn() {
   
   SetTraceLogLevel(TraceLogLevel::LOG_NONE);
-  InitWindow(1920, 600, "Debt Simulator");
+  SetConfigFlags(ConfigFlags::FLAG_WINDOW_RESIZABLE);
+  InitWindow(800, 600, "Debt Simulator");
+  MaximizeWindow();
   SetTargetFPS(60);
 
   refresh_odds();
