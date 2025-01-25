@@ -39,11 +39,13 @@ NUM_LANES  :: 4;
 
 horses: Horse[NUM_LANES];
 
-colors: Color[NUM_LANES] = {
+colors: Color[16] = {
   RED,
   GREEN,
   YELLOW,
   BLUE
+  PURPLE,
+  CYAN,
 };
 
 format_number :: fn(num: u64) -> c_string {
@@ -153,7 +155,7 @@ update :: fn() {
     horse.progress = fmod(horse.progress + horse.current_speed, 1.0);
     horse.current_speed = lerp(horse.current_speed, horse.target_speed, 0.01);
     if (horse.progress > 0.9) {
-      winning_horse_index = i as u8;
+      winning_horse_index = i as u8;      
       if selected_horse == i {
         winnings := bet * horse.odds_against;
         if debt > 0 {
@@ -164,6 +166,7 @@ update :: fn() {
         user_balance += winnings;
         last_winnings = winnings;
       }
+      debt = ((debt as float64) * 1.5) as u64;
       memset(horses, 0, sizeof(Horse) * NUM_LANES);
       refresh_odds();
       scene = Scene::ROUND_OVER_MENU;
@@ -297,19 +300,19 @@ draw_betting_menu :: fn() {
 
   if button("$1,000", loan_rect, style) {
     user_balance += 1000;
-    debt += 1000 * 1.15;
+    debt += 1000 * 2;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
   if button("$5,000", loan_rect, style) {
     user_balance += 5000;
-    debt += 5000 * 1.15;
+    debt += 5000 * 2;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
   if button("$10,000", loan_rect, style) {
     user_balance += 10000;
-    debt += 10000 * 1.15;
+    debt += 10000 * 2;
   }
 
   // Draw horse betting buttons
@@ -395,7 +398,6 @@ draw_round_over_menu :: fn() {
   
   text := $"Horse #{winning_horse_index+1} ({color_name})  wins!!\n";
   width := measure_jiggly_text(text, style) / 2;
-
 
   text_rect := Rectangle {
     x: (GetScreenWidth() / 2 - width),
