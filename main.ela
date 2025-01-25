@@ -2,6 +2,8 @@
 #import time;
 #import file;
 
+#foreign log10 :: fn(x: float64) -> float64;
+
 Scene :: enum {
   BETTING_MENU,
   RACE_SCENE,
@@ -48,6 +50,7 @@ format_number :: fn(num: u64) -> c_string {
   dbl := num as float64;
   symbol : char;
   buffer : char[20];
+  format: char[10];
   res : c_string;
 
   if (num <= 1000) {
@@ -72,8 +75,24 @@ format_number :: fn(num: u64) -> c_string {
     return null;
   }
 
-  snprintf(buffer, sizeof(buffer), "%.0f%c", dbl, symbol);
-  res = strdup(buffer) as c_string;
+  int_part := dbl as s32;
+  digits : s32;
+  if int_part == 0 {
+    digits = 1
+  } else {
+    digits = log10(int_part) + 1;
+  }
+
+  if digits >= 3 {
+    snprintf(format, sizeof(format), "%%.0f%%c");
+  } else if digits == 2 {
+    snprintf(format, sizeof(format), "%%.1f%%c");
+  } else {
+    snprintf(format, sizeof(format), "%%.2f%%c");
+  }
+
+  snprintf(buffer, sizeof(buffer), format, dbl, symbol);
+  res = strdup(buffer);
   return res;
 }
 
@@ -215,8 +234,12 @@ draw_betting_menu :: fn() {
 
   betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
   if button("Decrease Bet", betting_rect, style) {
-    bet = ((bet as float64) * 1.2) as u64;
-    if bet <= 0 then bet = 0;
+    new_bet := (bet as float64) / 1.2;
+    if new_bet <= 0 {
+      bet = 0;
+    } else {
+      bet = new_bet as u64;
+    }
   }
 
   betting_rect.y += (BUTTON_HEIGHT as float) * 1.5;
