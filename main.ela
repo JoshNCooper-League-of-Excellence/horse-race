@@ -196,7 +196,19 @@ update :: fn() {
         user_balance += winnings;
         last_winnings = winnings;
       }
-      debt = ((debt as float64) * 1.5) as u64;
+      interest := (debt as float64) * 0.15;
+      if user_balance < interest as u64 {
+        EndDrawing();
+        while {
+          if WindowShouldClose() then exit(1);
+          BeginDrawing();
+          ClearBackground(RED);
+          DrawText("Game Over", GetScreenWidth() / 2 - MeasureText("Game Over", 24), GetScreenHeight() / 2, 24, WHITE);
+          EndDrawing();
+        }
+      } else {
+        user_balance -= interest as u64
+      }
       memset(horses, 0, sizeof(Horse) * NUM_LANES);
       refresh_odds();
       scene = Scene::ROUND_OVER_MENU;
