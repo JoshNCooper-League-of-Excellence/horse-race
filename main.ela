@@ -1,6 +1,36 @@
 #import rayui;
 #import time;
 #import file;
+#import reflection;
+
+
+to_string :: fn![T](value: T) -> c_string {
+
+  type := #type(T);
+  format : c_string;
+  if type.is_integral() {
+    format = "%lld";
+  } else if type.is_float() {
+    format = "%.2f";
+  } else {
+    printf("unexpected type %s in to_string![T]()\n", type.name);
+    exit(1);
+  }
+
+  buffer: char[32];
+  snprintf(buffer, sizeof(buffer), "%lld", value);
+  return strdup(buffer) as c_string;
+}
+
+concat :: fn(a: c_string, b: c_string) -> c_string {
+  len_a := strlen(a);
+  len_b := strlen(b);
+  result := malloc(len_a + len_b + 1) as char*;
+  memcpy(result, a, len_a);
+  memcpy(result + len_a, b, len_b);
+  result[len_a + len_b] = '\0';
+  return result as c_string;
+}
 
 #foreign log10 :: fn(x: float64) -> float64;
 
@@ -15,17 +45,17 @@ selected_horse: u8;
 scene: Scene = Scene::BETTING_MENU;
 
 Stint :: struct {
-  begin:    float;
-  duration: float;
+  begin:    float,
+  duration: float,
 }
 
 Horse :: struct {
-  progress:        float;
-  current_speed:   float;
-  target_speed:    float;
-  stint:           Stint;
-  odds:            float;
-  odds_against:     u64;
+  progress:        float,
+  current_speed:   float,
+  target_speed:    float,
+  stint:           Stint,
+  odds:            float,
+  odds_against:     u64,
 }
 
 winning_horse_index: s32;
@@ -252,19 +282,19 @@ draw_betting_menu :: fn() {
 
   // Draw balance and debt text
   number := format_number(bet);
-  text := $"Current Bet: {number}";
+  text := concat("Current Bet: ", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 18, WHITE);
   free(text);
 
   number = format_number(user_balance);
-  text = $"Current Balance: ${number}";
+  text = concat("Current Balance: $", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 50, 18, GREEN);
   free(text);
 
   number = format_number(debt);
-  text = $"Debt: {number}";
+  text = concat("Debt: ", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 90, 18, RED);
   free(text);
@@ -326,7 +356,8 @@ draw_betting_menu :: fn() {
 
     style.foreground = colors[i];
     style.background = GRAY.with_alpha(25);
-    text := $"{1}/{horses[i].odds_against}";
+
+    text := concat("1/", to_string(horses[i].odds_against));
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
   }
@@ -340,10 +371,12 @@ draw_betting_menu :: fn() {
   };
   
   if button("Save", save_load_rect, style) {
-    str := $"{user_balance}, {debt}";
+    substr := concat(to_string(user_balance), " ");
+    str := concat(substr, to_string(debt));
     err := File::write_all("data.config", str);
     println(err);
     free(str);
+    free(substr);
   }
 
   save_load_rect.y += BUTTON_HEIGHT * 1.2;
@@ -372,12 +405,22 @@ draw_betting_menu :: fn() {
 draw_your_horse_indicator :: fn() {
   bet_str := format_number(bet);
   winnings_str := format_number(bet * horses[selected_horse].odds_against);
-  text := $"{selected_horse}, bet: ${bet_str}\nprojected win: ${winnings_str}";
-  free(bet_str);
-  free(winnings_str);
+  horse_str := to_string(selected_horse);
+  text_a := concat(horse_str, ", bet: $");
+  text_b := concat(text_a, bet_str);
+  text_c := concat(text_b, "\nprojected_win: $");
+  text := concat(text_c, winnings_str);
+  defer {
+    free(text);
+    free(text_a);
+    free(horse_str);
+    free(text_b);
+    free(text_c);
+    free(bet_str);
+    free(winnings_str);
+  }
   width := MeasureText(text, 18);
   DrawRectangle(0, 0, width * 1.2, HORSE_SIZE, colors[selected_horse]);
-  defer free(text);
   DrawText(text, 4, 0, 18, BLACK);
 }
 
