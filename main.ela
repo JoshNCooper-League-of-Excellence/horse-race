@@ -3,35 +3,6 @@
 #import file;
 #import reflection;
 
-
-to_string :: fn![T](value: T) -> c_string {
-
-  type := #type(T);
-  format : c_string;
-  if type.is_integral() {
-    format = "%lld";
-  } else if type.is_float() {
-    format = "%.2f";
-  } else {
-    printf("unexpected type %s in to_string![T]()\n", type.name);
-    exit(1);
-  }
-
-  buffer: char[32];
-  snprintf(buffer, sizeof(buffer), "%lld", value);
-  return strdup(buffer) as c_string;
-}
-
-concat :: fn(a: c_string, b: c_string) -> c_string {
-  len_a := strlen(a);
-  len_b := strlen(b);
-  result := malloc(len_a + len_b + 1) as char*;
-  memcpy(result, a, len_a);
-  memcpy(result + len_a, b, len_b);
-  result[len_a + len_b] = '\0';
-  return result as c_string;
-}
-
 #foreign log10 :: fn(x: float64) -> float64;
 
 Scene :: enum {
@@ -294,19 +265,19 @@ draw_betting_menu :: fn() {
 
   // Draw balance and debt text
   number := format_number(bet);
-  text := concat("Current Bet: ", number);
+  text := string_concat("Current Bet: ", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 18, WHITE);
   free(text);
 
   number = format_number(user_balance);
-  text = concat("Current Balance: $", number);
+  text = string_concat("Current Balance: $", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 50, 18, GREEN);
   free(text);
 
   number = format_number(debt);
-  text = concat("Debt: ", number);
+  text = string_concat("Debt: ", number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 90, 18, RED);
   free(text);
@@ -369,7 +340,7 @@ draw_betting_menu :: fn() {
     style.foreground = colors[i];
     style.background = GRAY.with_alpha(25);
 
-    text := concat("1/", to_string(horses[i].odds_against));
+    text := string_concat("1/", to_string(horses[i].odds_against));
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
   }
@@ -383,8 +354,8 @@ draw_betting_menu :: fn() {
   };
   
   if button("Save", save_load_rect, style) {
-    substr := concat(to_string(user_balance), " ");
-    str := concat(substr, to_string(debt));
+    substr := string_concat(to_string(user_balance), " ");
+    str := string_concat(substr, to_string(debt));
     err := File::write_all("data.config", str);
     println(err);
     free(str);
@@ -418,10 +389,10 @@ draw_your_horse_indicator :: fn() {
   bet_str := format_number(bet);
   winnings_str := format_number(bet * horses[selected_horse].odds_against);
   horse_str := to_string(selected_horse);
-  text_a := concat(horse_str, ", bet: $");
-  text_b := concat(text_a, bet_str);
-  text_c := concat(text_b, "\nprojected_win: $");
-  text := concat(text_c, winnings_str);
+  text_a := string_concat(horse_str, ", bet: $");
+  text_b := string_concat(text_a, bet_str);
+  text_c := string_concat(text_b, "\nprojected_win: $");
+  text := string_concat(text_c, winnings_str);
   defer {
     free(text);
     free(text_a);
@@ -450,8 +421,10 @@ draw_round_over_menu :: fn() {
     2 => "yellow",
     3 => "blue",
   };
+
   
-  text := $"Horse #{winning_horse_index+1} ({color_name})  wins!!\n";
+  text := string_concat("winning horse :: ", color_name);
+  defer free(text);
   width := measure_jiggly_text(text, style) / 2;
 
   text_rect := Rectangle {
@@ -462,21 +435,20 @@ draw_round_over_menu :: fn() {
   };
   
   jiggly_text(text, text_rect, style);
-  free(text);
-
 
   if selected_horse == winning_horse_index {
     winnings_str := format_number(last_winnings);
-    text = $"You win ${winnings_str}";
+    text := string_concat("You win $", winnings_str);
     free(winnings_str);
     DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, GREEN);
     free(text);
   } else {
     bet_str := format_number(bet);
-    text = $"You lost ${bet_str}";
+    text := string_concat("You lost $", bet_str);
+    defer free(text);
     free(bet_str);
     DrawText(text, (text_rect.x as s32), (text_rect.y as s32) - style.font_size * 2, 32, RED);
-    free(text);
+
   }
   
   
