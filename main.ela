@@ -3,7 +3,7 @@
 #import file;
 #import reflection;
 
-#foreign log10 :: fn(x: float64) -> float64;
+#foreign log10 :: fn(x: f64) -> f64;
 
 Scene :: enum {
   BETTING_MENU,
@@ -16,16 +16,16 @@ selected_horse: u8;
 scene: Scene = Scene::BETTING_MENU;
 
 Stint :: struct {
-  begin:    float,
-  duration: float,
+  begin:    f32,
+  duration: f32,
 }
 
 Horse :: struct {
-  progress:        float,
-  current_speed:   float,
-  target_speed:    float,
+  progress:        f32,
+  current_speed:   f32,
+  target_speed:    f32,
   stint:           Stint,
-  odds:            float,
+  odds:            f32,
   odds_against:     u64,
 }
 
@@ -33,7 +33,7 @@ winning_horse_index: s32;
 bet: u64;
 user_balance: u64 = 1000;
 debt: u64 = 0;
-total_odds : float = 0;
+total_odds : f32 = 0;
 
 HORSE_SIZE :: 40;
 NUM_LANES  :: 4;
@@ -50,10 +50,10 @@ colors: Color[16] = {
 };
 
 format_number :: fn(num: u64) -> c_string {
-  dbl := num as float64;
-  symbol : char;
-  buffer : char[20];
-  format: char[10];
+  dbl := num as f64;
+  symbol : u8;
+  buffer : u8[20];
+  format: u8[10];
   res : c_string;
 
   if (num <= 1000) {
@@ -105,7 +105,7 @@ refresh_odds :: fn() {
   total_odds = 0;
   high_roller_idx := GetRandomValue(0, NUM_LANES - 1);
   high_roller_odds_against := GetRandomValue(15, 30);
-  odds := 1 as float / high_roller_odds_against as float;
+  odds := 1 as f32 / high_roller_odds_against as f32;
   total_odds += odds;
   horses[high_roller_idx].odds = odds;
   horses[high_roller_idx].odds_against = high_roller_odds_against;
@@ -113,7 +113,7 @@ refresh_odds :: fn() {
   for i in 0..NUM_LANES {
     if i != high_roller_idx {
       odds_against := GetRandomValue(2, 20);
-      odds = 1 as float / odds_against as float;
+      odds = 1 as f32 / odds_against as f32;
       total_odds += odds;
       horses[i].odds = odds;
       horses[i].odds_against = odds_against;
@@ -122,7 +122,7 @@ refresh_odds :: fn() {
 }
 
 draw :: fn() {
-  finish_line_x := ((GetScreenWidth() as float) * 0.9) as s32;
+  finish_line_x := ((GetScreenWidth() as f32) * 0.9) as s32;
   DrawRectangle(finish_line_x, 0, 45, GetScreenHeight(), PURPLE);
   LANE_HEIGHT := GetScreenHeight() / NUM_LANES;
   PADDING := LANE_HEIGHT / 10;
@@ -139,13 +139,13 @@ update_stint :: fn(horse: Horse*) {
   time := GetTime();   
   if horse.stint.duration == 0 || time - horse.stint.begin >= horse.stint.duration {
     horse.stint.begin = time;
-    horse.stint.duration = GetRandomValue(1, 10) as float / 10.0;
-    speed := GetRandomValue(5, 10) as float / 5.0;
+    horse.stint.duration = GetRandomValue(1, 10) as f32 / 10.0;
+    speed := GetRandomValue(5, 10) as f32 / 5.0;
     rand := GetRandomValue(0, (total_odds * 100) as s32);
     if rand < horse.odds * 100 {
       speed += 0.1;
     }
-    horse.target_speed = speed as float / 1000.0;
+    horse.target_speed = speed as f32 / 1000.0;
   }
 }
 
@@ -167,7 +167,7 @@ update :: fn() {
         user_balance += winnings;
         last_winnings = winnings;
       }
-      interest := (debt as float64) * 0.15;
+      interest := (debt as f64) * 0.15;
       if user_balance < interest as u64 {
         EndDrawing();
         while {
@@ -244,13 +244,13 @@ draw_betting_menu :: fn() {
 
   if button("Increase Bet", betting_rect, style) {
     if bet == 0 then bet = 10;
-    bet = ((bet as float64) * 1.2) as u64;
+    bet = ((bet as f64) * 1.2) as u64;
     if bet > user_balance then bet = user_balance;
   }
 
-  betting_rect.x += (BUTTON_WIDTH as float) * 1.5;
+  betting_rect.x += (BUTTON_WIDTH as f32) * 1.5;
   if button("Decrease Bet", betting_rect, style) {
-    new_bet := (bet as float64) / 1.2;
+    new_bet := (bet as f64) / 1.2;
     if new_bet <= 0 {
       bet = 0;
     } else {
@@ -258,7 +258,7 @@ draw_betting_menu :: fn() {
     }
   }
 
-  betting_rect.y += (BUTTON_HEIGHT as float) * 1.5;
+  betting_rect.y += (BUTTON_HEIGHT as f32) * 1.5;
   if button("Max Bet", betting_rect, style) {
     bet = user_balance;
   }
@@ -331,7 +331,7 @@ draw_betting_menu :: fn() {
   // Draw horse betting buttons
   for i in 0..NUM_LANES {
     rect := Rectangle {
-      x: horse_section.x + (i * BUTTON_WIDTH) as float,
+      x: horse_section.x + (i * BUTTON_WIDTH) as f32,
       y: horse_section.y + BUTTON_HEIGHT / 4,
       width:  BUTTON_WIDTH,
       height: BUTTON_HEIGHT / 2,
