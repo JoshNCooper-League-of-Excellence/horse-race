@@ -39,7 +39,7 @@ HORSE_SIZE :: 40;
 NUM_LANES  :: 4;
 
 horses: Horse[NUM_LANES];
-
+  
 colors: Color[16] = {
   RED,
   GREEN,
@@ -49,16 +49,16 @@ colors: Color[16] = {
   CYAN,
 };
 
-format_number :: fn(num: u64) -> c_string {
+format_number :: fn(num: u64) -> u8* {
   dbl := num as f64;
   symbol : u8;
   buffer : u8[20];
   format: u8[10];
-  res : c_string;
+  res : u8*;
 
   if (num <= 1000) {
-    snprintf(buffer, sizeof(buffer), "%llu", num);
-    return strdup(buffer) as c_string;
+    snprintf(buffer, sizeof(buffer), "%llu"c, num);
+    return strdup(buffer) as u8*;
   } else if (num < 1_000_000) {
     dbl /= 1000.0;
     symbol = 'K';
@@ -87,11 +87,11 @@ format_number :: fn(num: u64) -> c_string {
   }
 
   if digits >= 3 {
-    snprintf(format, sizeof(format), "%%.0f%%c");
+    snprintf(format, sizeof(format), "%%.0f%%c"c);
   } else if digits == 2 {
-    snprintf(format, sizeof(format), "%%.1f%%c");
+    snprintf(format, sizeof(format), "%%.1f%%c"c);
   } else {
-    snprintf(format, sizeof(format), "%%.2f%%c");
+    snprintf(format, sizeof(format), "%%.2f%%c"c);
   }
 
   snprintf(buffer, sizeof(buffer), format, dbl, symbol);
@@ -174,7 +174,7 @@ update :: fn() {
           if WindowShouldClose() then exit(1);
           BeginDrawing();
           ClearBackground(RED);
-          DrawText("Game Over", GetScreenWidth() / 2 - MeasureText("Game Over", 24), GetScreenHeight() / 2, 24, WHITE);
+          DrawText("Game Over"c, GetScreenWidth() / 2 - MeasureText("Game Over"c, 24), GetScreenHeight() / 2, 24, WHITE);
           EndDrawing();
         }
       } else {
@@ -242,14 +242,14 @@ draw_betting_menu :: fn() {
     height: BUTTON_HEIGHT / 2
   };
 
-  if button("Increase Bet", betting_rect, style) {
+  if button("Increase Bet"c, betting_rect, style) {
     if bet == 0 then bet = 10;
     bet = ((bet as f64) * 1.2) as u64;
     if bet > user_balance then bet = user_balance;
   }
 
   betting_rect.x += (BUTTON_WIDTH as f32) * 1.5;
-  if button("Decrease Bet", betting_rect, style) {
+  if button("Decrease Bet"c, betting_rect, style) {
     new_bet := (bet as f64) / 1.2;
     if new_bet <= 0 {
       bet = 0;
@@ -259,25 +259,25 @@ draw_betting_menu :: fn() {
   }
 
   betting_rect.y += (BUTTON_HEIGHT as f32) * 1.5;
-  if button("Max Bet", betting_rect, style) {
+  if button("Max Bet"c, betting_rect, style) {
     bet = user_balance;
   }
 
   // Draw balance and debt text
   number := format_number(bet);
-  text := string_concat("Current Bet: ", number);
+  text := string_concat("Current Bet: "c, number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 10, 18, WHITE);
   free(text);
 
   number = format_number(user_balance);
-  text = string_concat("Current Balance: $", number);
+  text = string_concat("Current Balance: $"c, number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 50, 18, GREEN);
   free(text);
 
   number = format_number(debt);
-  text = string_concat("Debt: ", number);
+  text = string_concat("Debt: "c, number);
   free(number);
   DrawText(text, balance_section.x as s32 + 10, balance_section.y as s32 + 90, 18, RED);
   free(text);
@@ -290,7 +290,7 @@ draw_betting_menu :: fn() {
     height: BUTTON_HEIGHT / 2
   };
 
-  if button("Start Race", start_rect, style) {
+  if button("Start Race"c, start_rect, style) {
     if user_balance > 0 && bet > 0 {
       scene = Scene::RACE_SCENE;
       user_balance -= bet;
@@ -302,7 +302,7 @@ draw_betting_menu :: fn() {
   // Draw loan buttons
   style.foreground = ORANGE;
 
-  DrawText("Take loan, 15% interest.", loan_section.x as s32, (loan_section.y as s32) - 24, 16, ORANGE);
+  DrawText("Take loan, 15% interest."c, loan_section.x as s32, (loan_section.y as s32) - 24, 16, ORANGE);
 
   loan_rect := Rectangle {
     x: loan_section.x + BUTTON_WIDTH / 4,
@@ -311,19 +311,19 @@ draw_betting_menu :: fn() {
     height: BUTTON_HEIGHT / 2
   };
 
-  if button("$1,000", loan_rect, style) {
+  if button("$1,000"c, loan_rect, style) {
     user_balance += 1000;
     debt += 1000 * 2;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
-  if button("$5,000", loan_rect, style) {
+  if button("$5,000"c, loan_rect, style) {
     user_balance += 5000;
     debt += 5000 * 2;
   }
 
   loan_rect.y += BUTTON_HEIGHT;
-  if button("$10,000", loan_rect, style) {
+  if button("$10,000"c, loan_rect, style) {
     user_balance += 10000;
     debt += 10000 * 2;
   }
@@ -340,7 +340,7 @@ draw_betting_menu :: fn() {
     style.foreground = colors[i];
     style.background = GRAY.with_alpha(25);
 
-    text := string_concat("1/", to_string(horses[i].odds_against));
+    text := string_concat("1/"c, to_string(horses[i].odds_against));
     defer free(text);
     if button(text, rect, style) then selected_horse = i;
   }
@@ -353,25 +353,25 @@ draw_betting_menu :: fn() {
     height: BUTTON_HEIGHT,
   };
   
-  if button("Save", save_load_rect, style) {
+  if button("Save"c, save_load_rect, style) {
     substr := string_concat(to_string(user_balance), " ");
-    str := string_concat(substr, to_string(debt));
-    err := File::write_all("data.config", str);
+    string := string_concat(substr, to_string(debt));
+    err := File::write_all("data.config"c, string);
     println(err);
-    free(str);
+    free(string);
     free(substr);
   }
 
   save_load_rect.y += BUTTON_HEIGHT * 1.2;
   if button("Load", save_load_rect, style) {
-    err, str := File::read_all("data.config");
+    err, data := File::read_all("data.config");
     if err {
       println(err);
       return;
     }
 
     // Use strtok to parse the string
-    balance_str := strtok(str, ", ");
+    balance_str := strtok(data, ", ");
     if balance_str != null {
       user_balance = atoi(balance_str);
     }
@@ -381,7 +381,7 @@ draw_betting_menu :: fn() {
       debt = atoi(debt_str);
     }
 
-    free(str);
+    free(data);
   }
 }
 
