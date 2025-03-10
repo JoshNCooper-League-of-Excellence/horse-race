@@ -5,51 +5,7 @@ import fmt::*;
 
 #foreign log10 :: fn(x: f64) -> f64;
 
-Scene :: enum {
-  BETTING_MENU,
-  RACE_SCENE,
-  ROUND_OVER_MENU,
-}
-
-mut selected_horse: u8;
-
-mut scene: Scene = Scene::BETTING_MENU;
-
-Stint :: struct {
-  begin:    f32,
-  duration: f32,
-}
-
-Horse :: struct {
-  progress:        f32,
-  current_speed:   f32,
-  target_speed:    f32,
-  stint:           Stint,
-  odds:            f32,
-  odds_against:     u64,
-}
-
-mut winning_horse_index: s32;
-mut bet: u64;
-mut user_balance: u64 = 1000;
-mut debt: u64 = 0;
-mut total_odds : f32 = 0;
-
-HORSE_SIZE :: 40;
-NUM_LANES  :: 4;
-
-mut horses: Horse[NUM_LANES];
-  
-colors: Color[16] = .[
-  RED,
-  GREEN,
-  YELLOW,
-  BLUE
-  PURPLE,
-  CYAN,
-];
-
-format_number :: fn(num: u64) -> String {
+format_number :: fn!<T>(num: T) -> String where T is Is_Numeric {
   mut dbl := num as f64;
   mut symbol : u8;
   mut buffer : u8[20];
@@ -97,6 +53,79 @@ format_number :: fn(num: u64) -> String {
   return String::from_ptr(buffer);
 }
 
+Stint :: struct {
+  begin:    f32,
+  duration: f32,
+}
+
+Horse :: struct {
+  progress:        f32,
+  current_speed:   f32,
+  target_speed:    f32,
+  stint:           Stint,
+  odds:            f32,
+  odds_against:    u64,
+  dest_rect:            Rectangle,
+  source_rect:            Rectangle,
+  texture:         Texture2D,
+}
+
+
+Scene :: enum {
+  BETTING_MENU,
+  RACE_SCENE,
+  ROUND_OVER_MENU,
+}
+
+mut selected_horse: u8;
+mut scene: Scene = Scene::BETTING_MENU;
+mut winning_horse_index: s32;
+mut bet: u64;
+mut user_balance: u64 = 1000;
+mut debt: u64 = 0;
+mut total_odds : f32 = 0;
+
+
+HORSE_SIZE :: 120;
+NUM_LANES  :: 4;
+
+mut horses: Horse[NUM_LANES];
+
+impl Horse {
+  initialize :: fn(*mut self, index: s32) {
+    texture := switch index % 4 {
+      0 => LoadTexture("assets/horse-blue.png"c),
+      1 => LoadTexture("assets/horse-green.png"c),
+      2 => LoadTexture("assets/horse-orange.png"c),
+      3 => LoadTexture("assets/horse-red.png"c),
+    };
+
+    self.texture = texture;
+    
+    self.source_rect = .{
+      x: 0,
+      y: 0,
+      width: texture.width,
+      height: texture.height,
+    };
+
+    self.dest_rect = .{
+      x: 0,
+      y: 0,
+      width: HORSE_SIZE,
+      height: HORSE_SIZE,
+    };
+  }
+}
+
+
+colors: Color[16] = .[
+  BLUE,
+  GREEN,
+  ORANGE,
+  RED
+];
+
 mut last_winnings: u64;
 
 refresh_odds :: fn() {
@@ -125,10 +154,13 @@ draw :: fn() {
   LANE_HEIGHT := GetScreenHeight() / NUM_LANES;
   PADDING := LANE_HEIGHT / 10;
   for i in 0..NUM_LANES {
-    horse := horses[i];
-    x : s32 = GetScreenWidth() * horse.progress;
-    y : s32 = ((i % NUM_LANES) * LANE_HEIGHT + PADDING + HORSE_SIZE) as s32;
-    DrawRectangle(x, y, HORSE_SIZE, HORSE_SIZE, colors[i]);
+    horse := &mut horses[i];
+
+    horse.dest_rect.x = GetScreenWidth() * horse.progress;
+    horse.dest_rect.y = ((i % NUM_LANES) * LANE_HEIGHT + PADDING + HORSE_SIZE);
+
+
+    DrawTexturePro(horse.texture, horse.source_rect, horse.dest_rect, Vector2::zero(), 0, WHITE);
   }
 }
 
@@ -153,7 +185,13 @@ update :: fn() {
     update_stint(horse);    
     horse.progress = fmod(horse.progress + horse.current_speed, 1.0);
     horse.current_speed = lerp(horse.current_speed, horse.target_speed, 0.01);
-    if (horse.progress > 0.9) {
+
+
+    // TODO: this could be better.
+    percentage_occupied_by_horse := 
+      horse.dest_rect.width / GetScreenWidth();
+    
+    if (horse.progress > 1.0 - percentage_occupied_by_horse) {
       winning_horse_index = i as u8;      
       if selected_horse == i {
         mut winnings := bet * horse.odds_against;
@@ -381,8 +419,7 @@ draw_betting_menu :: fn() {
 draw_your_horse_indicator :: fn() {
   the_bet := format_number(bet);
   the_odds := format_number(bet * horses[selected_horse].odds_against);
-  mut text := format("%, bet: $%,\nprojected win: $%", (
-    selected_horse,
+  mut text := format("bet: $%,\nprojected win: $%", (
     the_bet,
     the_odds,
   ), Format_Options::default());
@@ -390,8 +427,8 @@ draw_your_horse_indicator :: fn() {
   defer text.deinit();
 
   width := MeasureText(text.data, 18);
-  DrawRectangle(0, 0, width * 1.2, HORSE_SIZE, colors[selected_horse]);
-  DrawText(text.data, 4, 0, 18, BLACK);
+  DrawRectangle(0, 0, width * 1.2, 40, colors[selected_horse].with_alpha(100));
+  DrawText(text.data, 4, 0, 18, WHITE.with_alpha(150));
 }
 
 draw_round_over_menu :: fn() {
@@ -403,10 +440,10 @@ draw_round_over_menu :: fn() {
   };
 
   color_name := switch winning_horse_index {
-    0 => "red",
+    0 => "blue",
     1 => "green",
-    2 => "yellow",
-    3 => "blue",
+    2 => "orange",
+    3 => "red",
   };
 
   text := format("winning horse :: %", (color_name,), Format_Options::default());
@@ -471,6 +508,10 @@ main :: fn() {
   SetTargetFPS(60);
 
   refresh_odds();
+
+  for idx in 0..NUM_LANES {
+    horses[idx].initialize(idx);
+  }
   
   while !WindowShouldClose() {
     BeginDrawing();
